@@ -3,12 +3,10 @@ from pathlib import Path
 
 
 def _strip_spaces(s: str) -> str:
-    """일반 공백 + NBSP 제거."""
     return s.replace("\xa0", "").strip()
 
 
 def _is_blank(v) -> bool:
-    """완전히 빈 셀인지 판정."""
     if v is None:
         return True
     if isinstance(v, float) and pd.isna(v):
@@ -27,10 +25,6 @@ def _is_number(v) -> bool:
 
 
 def parse_diet_file(path: Path):
-    """
-    한 개의 엑셀 파일을 파싱해서 dict 리스트로 반환.
-    (날짜, 이름, 양, 분류, 지방, 탄수화물, 단백질, 칼로리)
-    """
     df = pd.read_excel(path, header=None)
 
     # 0행 0열: '화요일 2025년 11월 11일' 같은 날짜 문자열 그대로 사용
@@ -128,15 +122,17 @@ def main():
         )
 
         # ---------- 4) 완전히 빈 매크로 줄 제거 ----------
-        # (지방/탄/단/칼 네 칸이 모두 비어 있으면 의미 없는 줄이라고 보고 삭제)
-        mask_all_empty = df_out[["지방", "탄수화물", "단백질", "칼로리"]].isna().all(axis=1)
+        macro_cols = ["지방", "탄수화물", "단백질", "칼로리"]
+        mask_all_empty = df_out[macro_cols].isna().all(axis=1)
         df_out = df_out[~mask_all_empty].reset_index(drop=True)
+
+        # ---------- 5) 남은 매크로 값의 빈 칸은 0으로 채우기 ----------
+        df_out.loc[:, macro_cols] = df_out[macro_cols].fillna(0)
 
         out_path = xlsx.with_name(xlsx.stem + "_cleaned.csv")
         df_out.to_csv(out_path, index=False, encoding="utf-8-sig")
 
         print(f"{xlsx.name} → {out_path.name} ({len(df_out)}행) 저장 완료")
-
 
 if __name__ == "__main__":
     main()
